@@ -181,4 +181,3 @@ Each pipeline execution provides full operational traceability:
 * Load success and failure counts
 * Watermark updates across runs
 * Error logs with full stack traces
-قولّي
