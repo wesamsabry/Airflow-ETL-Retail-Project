@@ -1,5 +1,4 @@
-# Retail Data Pipeline — Apache Airflow (Production-Grade ETL System)
-
+# Retail Data Pipeline — Astro Airflow Pipelines
 A scalable, production-ready data engineering pipeline built with Apache Airflow (Astro CLI) that orchestrates end-to-end data processing from multiple sources into a structured PostgreSQL data warehouse with incremental and idempotent loading capabilities.
 
 ---
