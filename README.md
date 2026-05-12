@@ -1,45 +1,184 @@
-Overview
-========
+# Retail Data Pipeline — Apache Airflow (Production-Grade ETL System)
 
-Welcome to Astronomer! This project was generated after you ran 'astro dev init' using the Astronomer CLI. This readme describes the contents of the project, as well as how to run Apache Airflow on your local machine.
+A scalable, production-ready data engineering pipeline built with Apache Airflow (Astro CLI) that orchestrates end-to-end data processing from multiple sources into a structured PostgreSQL data warehouse with incremental and idempotent loading capabilities.
 
-Project Contents
-================
+---
 
-Your Astro project contains the following files and folders:
+# System Overview
 
-- dags: This folder contains the Python files for your Airflow DAGs. By default, this directory includes one example DAG:
-    - `example_astronauts`: This DAG shows a simple ETL pipeline example that queries the list of astronauts currently in space from the Open Notify API and prints a statement for each astronaut. The DAG uses the TaskFlow API to define tasks in Python, and dynamic task mapping to dynamically print a statement for each astronaut. For more on how this DAG works, see our [Getting started tutorial](https://www.astronomer.io/docs/learn/get-started-with-airflow).
-- Dockerfile: This file contains a versioned Astro Runtime Docker image that provides a differentiated Airflow experience. If you want to execute other commands or overrides at runtime, specify them here.
-- include: This folder contains any additional files that you want to include as part of your project. It is empty by default.
-- packages.txt: Install OS-level packages needed for your project by adding them to this file. It is empty by default.
-- requirements.txt: Install Python packages needed for your project by adding them to this file. It is empty by default.
-- plugins: Add custom or community plugins for your project to this file. It is empty by default.
-- airflow_settings.yaml: Use this local-only file to specify Airflow Connections, Variables, and Pools instead of entering them in the Airflow UI as you develop DAGs in this project.
+This project implements a robust ETL orchestration framework designed to simulate real-world data engineering workflows in modern data platforms.
 
-Deploy Your Project Locally
-===========================
+The pipeline integrates multiple data sources and processing stages:
 
-Start Airflow on your local machine by running 'astro dev start'.
+* Batch ingestion from CSV files (Retail transactional data)
+* API ingestion from REST endpoints (DummyJSON Products API)
+* Data transformation and normalization layer
+* Data validation and quality enforcement layer
+* Incremental loading into PostgreSQL warehouse
 
-This command will spin up five Docker containers on your machine, each for a different Airflow component:
+The system is fully orchestrated using Apache Airflow DAGs with a modular, production-oriented architecture.
 
-- Postgres: Airflow's Metadata Database
-- Scheduler: The Airflow component responsible for monitoring and triggering tasks
-- DAG Processor: The Airflow component responsible for parsing DAGs
-- API Server: The Airflow component responsible for serving the Airflow UI and API
-- Triggerer: The Airflow component responsible for triggering deferred tasks
+---
 
-When all five containers are ready the command will open the browser to the Airflow UI at http://localhost:8080/. You should also be able to access your Postgres Database at 'localhost:5432/postgres' with username 'postgres' and password 'postgres'.
+# Architecture Design
 
-Note: If you already have either of the above ports allocated, you can either [stop your existing Docker containers or change the port](https://www.astronomer.io/docs/astro/cli/troubleshoot-locally#ports-are-not-available-for-my-local-airflow-webserver).
+```id="faang_arch"
+CSV Source ───────┐
+                  │
+                  ▼
+           ┌──────────────┐
+           │ Extraction   │  (API + CSV)
+           └─────┬────────┘
+                 ▼
+           ┌──────────────┐
+           │ Transformation│  (Cleaning + Structuring)
+           └─────┬────────┘
+                 ▼
+           ┌──────────────┐
+           │ Validation   │  (Data Quality Checks)
+           └─────┬────────┘
+                 ▼
+           ┌────────────────────────┐
+           │ Incremental Loader     │
+           │ PostgreSQL (Upsert)    │
+           └─────┬──────────────────┘
+                 ▼
+           ┌──────────────┐
+           │ Observability │
+           │ Logging Layer │
+           └──────────────┘
+```
 
-Deploy Your Project to Astronomer
-=================================
+---
 
-If you have an Astronomer account, pushing code to a Deployment on Astronomer is simple. For deploying instructions, refer to Astronomer documentation: https://www.astronomer.io/docs/astro/deploy-code/
+# Core Engineering Features
 
-Contact
-=======
+## Multi-Source Data Ingestion
 
-The Astronomer CLI is maintained with love by the Astronomer team. To report a bug or suggest a change, reach out to our support.
+* Batch ingestion from structured CSV files
+* REST API ingestion with resilient HTTP handling
+
+## Fault-Tolerant API Layer
+
+* Retry mechanism with exponential backoff
+* Safe handling of unstable API responses
+* Consistent request configuration using custom headers
+
+## Data Quality Enforcement
+
+* Schema validation before persistence
+* Null, type, and integrity checks
+* Prevention of corrupted data propagation downstream
+
+## Incremental Processing Engine
+
+* High-watermark strategy for change tracking
+* Only new or updated records are processed per run
+* Fully idempotent execution model
+
+## Data Warehouse Design
+
+* Dimensional modeling (fact and dimension schema)
+* Upsert-based ingestion using ON CONFLICT
+* Optimized structure for analytical workloads
+
+## Orchestration Layer (Airflow)
+
+* Modular DAG-based pipeline design
+* Clear task dependencies
+* Scalable and maintainable workflow structure
+
+## Observability & Logging
+
+* Structured logging per pipeline stage
+* Row-level tracking across ETL stages
+* Error tracing for debugging and monitoring
+
+---
+
+# Tech Stack
+
+| Layer                  | Technology      |
+| ---------------------- | --------------- |
+| Workflow Orchestration | Apache Airflow  |
+| Local Runtime          | Astro CLI       |
+| Processing             | Python (Pandas) |
+| Data Sources           | CSV + REST API  |
+| Storage                | PostgreSQL      |
+| Infrastructure         | Docker          |
+| Observability          | Python Logging  |
+
+---
+
+# System Design Structure
+
+```id="faang_structure"
+dags/
+  └── retail_etl_dag.py          # Airflow orchestration layer
+
+include/
+  ├── extract.py                 # Data ingestion (API + CSV)
+  ├── transform.py               # Data processing layer
+  ├── validate.py               # Data quality enforcement
+  ├── load_postgre.py           # Warehouse loading logic
+  └── data/
+      └── retail_sales.csv
+
+tests/
+Dockerfile
+requirements.txt
+.astro/
+```
+
+---
+
+# Data Processing Strategy
+
+## Incremental Loading (High-Watermark Design)
+
+The pipeline follows a stateful ingestion model:
+
+* Maintains last processed watermark
+* Extracts only new records on each run
+* Prevents duplicate data ingestion
+* Supports safe re-execution (idempotency)
+
+---
+
+# Data Warehouse Schema
+
+## dim_products
+
+Stores product metadata used for analytical queries.
+
+* product_id (Primary Key)
+* title
+* category
+* price
+* quantity
+
+---
+
+## fact_sales
+
+Stores transactional sales records.
+
+* sale_id (Primary Key)
+* product_id (Foreign Key)
+* customer_id
+* quantity
+* price
+* sale_date
+
+---
+
+# Observability Model
+
+Each pipeline execution provides full operational traceability:
+
+* Number of extracted records per source
+* Transformation output metrics
+* Load success and failure counts
+* Watermark updates across runs
+* Error logs with full stack traces
+قولّي
